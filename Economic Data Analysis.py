@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import os
 
 # Set page configuration
 st.set_page_config(page_title="Economic Data Analysis Dashboard", layout="wide")
@@ -22,14 +23,25 @@ st.markdown("""
 # Load dataset
 @st.cache_data
 def load_data():
-    df = pd.read_csv("salesforcourse-4fe2kehu.csv")
-    # Data cleaning
-    df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-    df['Year_Month'] = df['Year'].astype(str) + '-' + df['Month']
-    df['profit'] = df['Revenue'] - df['Cost']
-    return df
+    try:
+        df = pd.read_csv("salesforcourse-4fe2kehu.csv")  # Update path if necessary
+        # Data cleaning
+        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+        df['Year_Month'] = df['Year'].astype(str) + '-' + df['Month']
+        df['profit'] = df['Revenue'] - df['Cost']
+        return df
+    except FileNotFoundError:
+        st.error("Error: The file 'salesforcourse-4fe2kehu.csv' was not found. Please ensure the file is in the correct directory or provide the correct path.")
+        return pd.DataFrame()
+    except Exception as e:
+        st.error(f"An error occurred while loading the data: {str(e)}")
+        return pd.DataFrame()
 
 df = load_data()
+
+# Stop execution if data loading failed
+if df.empty:
+    st.stop()
 
 # Sidebar for filters
 st.sidebar.header("Filters")
@@ -70,7 +82,7 @@ with col3:
     st.markdown(f"{filtered_df['Quantity'].sum():,.0f}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Monthly Performance Line Chart (inspired by pages 26–31)
+# Monthly Performance Line Chart
 st.subheader("Monthly Revenue, Cost, and Profit Trends")
 grouped = filtered_df.groupby(['Year_Month'])[['Cost', 'Revenue', 'profit']].sum().reset_index()
 fig1 = px.line(grouped, x='Year_Month', y=['Cost', 'Revenue', 'profit'], title='Monthly Performance',
@@ -82,7 +94,7 @@ st.plotly_chart(fig1, use_container_width=True)
 col_left, col_right = st.columns(2)
 
 with col_left:
-    # Top Selling Sub-Categories by Quantity (page 32)
+    # Top Selling Sub-Categories by Quantity
     st.subheader("Top Selling Sub-Categories by Quantity")
     category_sales = filtered_df.groupby('Sub Category')['Quantity'].sum().reset_index().sort_values('Quantity', ascending=False)
     fig2 = px.bar(category_sales, y='Sub Category', x='Quantity', text_auto='.2s',
@@ -91,7 +103,7 @@ with col_left:
     fig2.update_layout(title_x=0.5, height=500)
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Profit by Country Pie Chart (page 37)
+    # Profit by Country Pie Chart
     st.subheader("Profit Distribution by Country")
     country_profit = filtered_df.groupby('Country')['profit'].sum().reset_index()
     fig4 = px.pie(country_profit, values='profit', names='Country', title="Profit by Country",
@@ -100,7 +112,7 @@ with col_left:
     st.plotly_chart(fig4, use_container_width=True)
 
 with col_right:
-    # Top Selling Sub-Categories by Profit (page 33)
+    # Top Selling Sub-Categories by Profit
     st.subheader("Top Sub-Categories by Profit")
     category_profit = filtered_df.groupby('Sub Category')['profit'].sum().reset_index().sort_values('profit', ascending=False)
     fig3 = px.bar(category_profit, y='Sub Category', x='profit', text_auto='.2s',
@@ -109,7 +121,7 @@ with col_right:
     fig3.update_layout(title_x=0.5, height=500)
     st.plotly_chart(fig3, use_container_width=True)
 
-    # Top Selling Products by Customer Age (page 35)
+    # Top Selling Products by Customer Age
     st.subheader("Top Selling Products by Customer Age")
     df_grouped = filtered_df.groupby(['Customer Age', 'Sub Category'])['Quantity'].sum().reset_index()
     top_products = df_grouped.groupby('Customer Age').apply(lambda x: x.loc[x['Quantity'].idxmax()]).reset_index(drop=True)
