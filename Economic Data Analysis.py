@@ -2,11 +2,10 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime
 import os
 
 # Set page configuration
-st.set_page_config(page_title="Economic Data Analysis Dashboard", layout="wide")
+st.set_page_config(page_title="Cost of Living Analysis Dashboard", layout="wide")
 
 # Custom CSS for styling
 st.markdown("""
@@ -24,14 +23,10 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("Cost_of_Living_Index_2022.csv")  # Update path if necessary
-        # Data cleaning
-        df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-        df['Year_Month'] = df['Year'].astype(str) + '-' + df['Month']
-        df['profit'] = df['Revenue'] - df['Cost']
+        df = pd.read_csv("Cost_of_Living_Index_2022.csv")
         return df
     except FileNotFoundError:
-        st.error("Error: The file 'salesforcourse-4fe2kehu.csv' was not found. Please ensure the file is in the correct directory or provide the correct path.")
+        st.error("Error: The file 'Cost_of_Living_Index_2022.csv' was not found. Please ensure the file is in the correct directory or provide the correct path.")
         return pd.DataFrame()
     except Exception as e:
         st.error(f"An error occurred while loading the data: {str(e)}")
@@ -46,90 +41,83 @@ if df.empty:
 # Sidebar for filters
 st.sidebar.header("Filters")
 country = st.sidebar.selectbox("Select Country", ["All"] + sorted(df["Country"].unique().tolist()))
-year = st.sidebar.selectbox("Select Year", ["All"] + sorted(df["Year"].unique().astype(int).tolist()))
-product_category = st.sidebar.selectbox("Select Product Category", ["All"] + sorted(df["Product Category"].unique().tolist()))
-age_range = st.sidebar.slider("Customer Age Range", int(df["Customer Age"].min()), int(df["Customer Age"].max()), (int(df["Customer Age"].min()), int(df["Customer Age"].max())))
 
 # Apply filters
 filtered_df = df.copy()
 if country != "All":
     filtered_df = filtered_df[filtered_df["Country"] == country]
-if year != "All":
-    filtered_df = filtered_df[filtered_df["Year"] == year]
-if product_category != "All":
-    filtered_df = filtered_df[filtered_df["Product Category"] == product_category]
-filtered_df = filtered_df[(filtered_df["Customer Age"] >= age_range[0]) & (filtered_df["Customer Age"] <= age_range[1])]
 
 # Main title
-st.title("Economic Data Analysis Dashboard")
-st.markdown("Interactive dashboard for analyzing sales transactions (2015-2016).")
+st.title("Cost of Living Analysis Dashboard")
+st.markdown("Interactive dashboard for analyzing cost-of-living indices across countries (2022).")
 
 # Summary Metrics
 col1, col2, col3 = st.columns(3)
 with col1:
     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-    st.subheader("Total Revenue")
-    st.markdown(f"${filtered_df['Revenue'].sum():,.2f}")
+    st.subheader("Average Cost of Living Index")
+    st.markdown(f"{filtered_df['Cost of Living Index'].mean():,.2f}")
     st.markdown('</div>', unsafe_allow_html=True)
 with col2:
     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-    st.subheader("Total Profit")
-    st.markdown(f"${filtered_df['profit'].sum():,.2f}")
+    st.subheader("Average Rent Index")
+    st.markdown(f"{filtered_df['Rent Index'].mean():,.2f}")
     st.markdown('</div>', unsafe_allow_html=True)
 with col3:
     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
-    st.subheader("Total Quantity Sold")
-    st.markdown(f"{filtered_df['Quantity'].sum():,.0f}")
+    st.subheader("Average Purchasing Power Index")
+    st.markdown(f"{filtered_df['Local Purchasing Power Index'].mean():,.2f}")
     st.markdown('</div>', unsafe_allow_html=True)
 
-# Monthly Performance Line Chart
-st.subheader("Monthly Revenue, Cost, and Profit Trends")
-grouped = filtered_df.groupby(['Year_Month'])[['Cost', 'Revenue', 'profit']].sum().reset_index()
-fig1 = px.line(grouped, x='Year_Month', y=['Cost', 'Revenue', 'profit'], title='Monthly Performance',
-               labels={'value': 'Amount ($)', 'variable': 'Metric'})
-fig1.update_layout(title_x=0.5, height=500)
+# Cost of Living vs. Rent Index Scatter Plot
+st.subheader("Cost of Living vs. Rent Index by Country")
+fig1 = px.scatter(filtered_df, x='Cost of Living Index', y='Rent Index', color='Country',
+                  size='Local Purchasing Power Index', hover_data=['Country'],
+                  title='Cost of Living vs. Rent Index (Size: Purchasing Power)',
+                  labels={'Cost of Living Index': 'Cost of Living Index', 'Rent Index': 'Rent Index'})
+fig1.update_layout(title_x=0.5, height=500, showlegend=False if country != "All" else True)
 st.plotly_chart(fig1, use_container_width=True)
 
 # Two-column layout for additional charts
 col_left, col_right = st.columns(2)
 
 with col_left:
-    # Top Selling Sub-Categories by Quantity
-    st.subheader("Top Selling Sub-Categories by Quantity")
-    category_sales = filtered_df.groupby('Sub Category')['Quantity'].sum().reset_index().sort_values('Quantity', ascending=False)
-    fig2 = px.bar(category_sales, y='Sub Category', x='Quantity', text_auto='.2s',
-                  title="Product Sales Quantity by Sub Category",
-                  labels={'Quantity': 'Quantity Sold'})
-    fig2.update_layout(title_x=0.5, height=500)
+    # Top Countries by Cost of Living Index
+    st.subheader("Top Countries by Cost of Living Index")
+    top_cost = filtered_df[['Country', 'Cost of Living Index']].sort_values('Cost of Living Index', ascending=False).head(10)
+    fig2 = px.bar(top_cost, x='Cost of Living Index', y='Country', text_auto='.2f',
+                  title="Top 10 Countries by Cost of Living Index",
+                  labels={'Cost of Living Index': 'Cost of Living Index'})
+    fig2.update_layout(title_x=0.5, height=400)
     st.plotly_chart(fig2, use_container_width=True)
 
-    # Profit by Country Pie Chart
-    st.subheader("Profit Distribution by Country")
-    country_profit = filtered_df.groupby('Country')['profit'].sum().reset_index()
-    fig4 = px.pie(country_profit, values='profit', names='Country', title="Profit by Country",
-                  color_discrete_sequence=px.colors.sequential.RdBu)
+    # Groceries Index Distribution
+    st.subheader("Groceries Index Distribution")
+    fig4 = px.histogram(filtered_df, x='Groceries Index', nbins=20,
+                        title="Distribution of Groceries Index Across Countries",
+                        labels={'Groceries Index': 'Groceries Index'})
     fig4.update_layout(title_x=0.5, height=400)
     st.plotly_chart(fig4, use_container_width=True)
 
 with col_right:
-    # Top Selling Sub-Categories by Profit
-    st.subheader("Top Sub-Categories by Profit")
-    category_profit = filtered_df.groupby('Sub Category')['profit'].sum().reset_index().sort_values('profit', ascending=False)
-    fig3 = px.bar(category_profit, y='Sub Category', x='profit', text_auto='.2s',
-                  title="Profit by Sub Category",
-                  labels={'profit': 'Profit ($)'})
-    fig3.update_layout(title_x=0.5, height=500)
+    # Top Countries by Purchasing Power Index
+    st.subheader("Top Countries by Purchasing Power Index")
+    top_purchasing = filtered_df[['Country', 'Local Purchasing Power Index']].sort_values('Local Purchasing Power Index', ascending=False).head(10)
+    fig3 = px.bar(top_purchasing, x='Local Purchasing Power Index', y='Country', text_auto='.2f',
+                  title="Top 10 Countries by Purchasing Power Index",
+                  labels={'Local Purchasing Power Index': 'Purchasing Power Index'})
+    fig3.update_layout(title_x=0.5, height=400)
     st.plotly_chart(fig3, use_container_width=True)
 
-    # Top Selling Products by Customer Age
-    st.subheader("Top Selling Products by Customer Age")
-    df_grouped = filtered_df.groupby(['Customer Age', 'Sub Category'])['Quantity'].sum().reset_index()
-    top_products = df_grouped.groupby('Customer Age').apply(lambda x: x.loc[x['Quantity'].idxmax()]).reset_index(drop=True)
-    fig5 = px.bar(top_products, x='Customer Age', y='Quantity', color='Sub Category',
-                  title="Top Selling Sub-Category by Customer Age")
-    fig5.update_layout(title_x=0.5, height=400)
+    # Restaurant Price Index vs. Purchasing Power
+    st.subheader("Restaurant Price vs. Purchasing Power")
+    fig5 = px.scatter(filtered_df, x='Restaurant Price Index', y='Local Purchasing Power Index',
+                      color='Country', hover_data=['Country'],
+                      title="Restaurant Price Index vs. Purchasing Power Index",
+                      labels={'Restaurant Price Index': 'Restaurant Price Index', 'Local Purchasing Power Index': 'Purchasing Power Index'})
+    fig5.update_layout(title_x=0.5, height=400, showlegend=False if country != "All" else True)
     st.plotly_chart(fig5, use_container_width=True)
 
 # Footer
 st.markdown("---")
-st.markdown("Developed for Economic Data Analysis Project | Data Source: salesforcourse-4fe2kehu.csv")
+st.markdown("Developed for Cost of Living Analysis Project | Data Source: Cost_of_Living_Index_2022.csv")
