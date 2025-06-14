@@ -24,7 +24,7 @@ st.markdown("""
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("salesforcourse-4fe2kehu.csv")  # Update path if necessary
+        df = pd.read_csv("Cost_of_Living_Index_2022.csv")  # Update path if necessary
         # Data cleaning
         df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
         df['Year_Month'] = df['Year'].astype(str) + '-' + df['Month']
